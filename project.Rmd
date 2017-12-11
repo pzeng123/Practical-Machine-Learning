@@ -1,0 +1,99 @@
+---
+title: "Practical Machine Learning Project: Predicting the quality of exercises"
+author: "Peng Zeng"
+date: "December 10, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Introduction
+Using devices such as *Jawbone Up, Nike FuelBand*, and *Fitbit* it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify *how well they do it*.
+
+In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information could be found in  the section on the Weight Lifting Exercise Dataset from: http://groupware.les.inf.puc-rio.br/har.
+
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+##Pre-processing Data
+
+First we load the training and testing datasets from the website links. Several columns of the raw data set have string contaning nothing, so we delete those columns first, and we also delete the first 7 columns: X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window, num_window. They contain useless information for our analysis.
+
+```{r}
+training <- read.csv('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv')
+training <- training[, -c(1:7)]
+
+testing  <- read.csv('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv')
+testing <- testing[, -c(1:7)]
+```
+
+The training data has `19622 ` columns (variables or features) and `153 ` rows  (observations) distributed among the following `5` classes:
+```{r}
+table(training$classe)
+```
+
+
+The next step is data cleaning: removing the columns which contain at least one 'NA' value.
+```{r}
+Col <- colSums(is.na(training)) == 0 & colSums(is.na(testing)) == 0
+testing  <- testing[, Col]
+training <- training[, Col]
+```
+
+##Data Processing and Training
+The training set is divided into two parts: 1. 75% of rows of the set  used for training, 2. 25% used for cross validation.
+
+```{r message=FALSE, warning=FALSE}
+library(caret)
+set.seed(10000)
+inTrain <- createDataPartition(training$classe, p=0.75, list=FALSE)
+subtraining <- training[inTrain,]
+crossvalid <- training[-inTrain,]
+```
+
+We will try to use and compare following two prediction models:
+1. Decision Tree
+```{r message=FALSE, warning=FALSE}
+library(rpart)
+library(rpart.plot)
+modelA <- rpart(classe ~ ., data=subtraining, method="class")
+```
+
+2. Random Forest
+```{r message=FALSE, warning=FALSE}
+library(randomForest)
+modelB <- randomForest(classe ~ ., data=subtraining)
+```
+
+##Validation of the models
+Comparing with the real values of the observations, we can evaluate the accuracy of the prediction:
+
+```{r}
+# Decision Tree
+confusionMatrix(crossvalid$classe, predict(modelA, crossvalid, type="class"))
+
+# Random Forest
+confusionMatrix(crossvalid$classe, predict(modelB, crossvalid))
+```
+
+As we could see, the Random Forest model has higher accuracy (0.9953) than Decision Tree model (0.7545).
+
+
+##Prediction
+The Random Forest model is used for the prediction of testing values.
+
+```{r}
+predict(modelB, testing)
+```
+
+
+
+
+
